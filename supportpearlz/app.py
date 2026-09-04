@@ -1,6 +1,8 @@
 import streamlit as st
 from openai import OpenAI
 from src.chains.rag_chain import get_rag_chain
+from pathlib import Path
+from src.ingestion.build_index import build_vector_store
 
 st.set_page_config(
     page_title="SupportPearlz AI | Enterprise Assistant",
@@ -139,9 +141,15 @@ for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
-# Cache RAG chain
+# Cache RAG chain and ensure vector store exists
 @st.cache_resource
 def load_chain():
+    vector_store_path = Path("data/vector_store")
+    if not vector_store_path.exists() or not any(vector_store_path.iterdir()):
+        try:
+            build_vector_store()
+        except Exception:
+            pass
     return get_rag_chain()
 
 rag_chain = load_chain()
