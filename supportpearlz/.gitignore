@@ -1,0 +1,14 @@
+# Environment variables
+.env
+
+# Python cache and build files
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+
+# Local vector database storage
+data/vector_store/
+
+# Logs
+*.log
