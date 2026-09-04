@@ -141,7 +141,7 @@ for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
-# Cache RAG chain and ensure vector store exists
+# Cache RAG chain and ensure vector store exists (Only loaded after authentication)
 @st.cache_resource
 def load_chain():
     vector_store_path = Path("data/vector_store")
