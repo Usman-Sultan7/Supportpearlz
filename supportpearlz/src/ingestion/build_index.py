@@ -1,4 +1,5 @@
 import os
+import streamlit as st
 from pathlib import Path
 from langchain_community.document_loaders import DirectoryLoader, TextLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
@@ -35,10 +36,10 @@ def build_vector_store():
     docs = text_splitter.split_documents(documents)
     logger.info(f"Split into {len(docs)} text chunks.")
 
-    # Create embeddings using OpenAI
-    api_key = os.getenv("OPENAI_API_KEY")
+    # Grab the API key dynamically from the active Streamlit session!
+    api_key = st.session_state.get("api_key") or os.getenv("OPENAI_API_KEY")
     if not api_key:
-        raise ValueError("OPENAI_API_KEY is missing. Please provide a valid key.")
+        raise ValueError("OPENAI_API_KEY is missing. Please authenticate in the UI.")
 
     embeddings = OpenAIEmbeddings(
         model="text-embedding-3-small",
