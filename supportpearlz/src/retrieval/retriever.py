@@ -1,32 +1,50 @@
-import logging
-from langchain_openai import OpenAIEmbeddings
+import streamlit as st
+from pathlib import Path
 from langchain_community.vectorstores import FAISS
-from src.config import settings
+from langchain_openai import OpenAIEmbeddings
 from src.utils.logging_setup import setup_logging
 
-logger = setup_logging()
+logger = setup_logging("retriever")
 
-def get_retriever(k: int = 3):
-    """Loads the persistent FAISS vector store and returns a configured retriever."""
-    vector_store_path = settings.vector_store_path
-    embeddings = OpenAIEmbeddings(openai_api_key=settings.openai_api_key.get_secret_value())
+def get_retriever():
+    """Initializes and returns the FAISS retriever."""
+    logger.info("Initializing FAISS retriever...")
     
+    vector_store_path = Path("data/vector_store")
+    
+    if not vector_store_path.exists():
+        logger.error(f"Vector store path {vector_store_path} does not exist.")
+        return None
+
+    # Retrieve the API key dynamically from the Streamlit session state
+    api_key = st.session_state.get("api_key", "")
+    if not api_key:
+        logger.error("OpenAI API key missing from session state.")
+        return None
+
     try:
-        # Load persisted FAISS index from disk
+        # Initialize embeddings with the dynamic user key
+        embeddings = OpenAIEmbeddings(
+            model="text-embedding-3-small", 
+            openai_api_key=api_key
+        )
+        
+        # Load the FAISS vector store 
+        # (allow_dangerous_deserialization is required for local FAISS loading in LangChain)
         vector_store = FAISS.load_local(
-            vector_store_path, 
-            embeddings, 
+            folder_path=str(vector_store_path), 
+            embeddings=embeddings, 
             allow_dangerous_deserialization=True
         )
         
-        # Configure retriever with top-k
         retriever = vector_store.as_retriever(
-            search_type="similarity",
-            search_kwargs={"k": k}
+            search_type="similarity", 
+            search_kwargs={"k": 4}
         )
-        logger.info(f"Retriever successfully initialized with k={k}.")
+        
+        logger.info("Retriever successfully initialized.")
         return retriever
         
     except Exception as e:
-        logger.error(f"Failed to load vector store retriever from {vector_store_path}: {e}")
+        logger.error(f"Error loading FAISS vector store: {e}")
         return None
