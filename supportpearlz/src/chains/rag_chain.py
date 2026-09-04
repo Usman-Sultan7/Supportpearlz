@@ -1,65 +1,56 @@
-import logging
+import streamlit as st
 from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.runnables import RunnablePassthrough
-from src.config import settings
 from src.retrieval.retriever import get_retriever
 from src.utils.logging_setup import setup_logging
 
-logger = setup_logging()
-
-def format_docs(docs):
-    """Format retrieved documents into a single string context."""
-    return "\n\n".join(doc.page_content for doc in docs)
+logger = setup_logging("rag_chain")
 
 def get_rag_chain():
-    """Constructs and returns the production RAG customer support chain."""
-    logger.info("Initializing RAG chain components...")
+    """Initializes and returns the LCEL RAG chain using session API key."""
+    logger.info("Initializing RAG chain...")
     
-    # 1. Initialize LLM
-    llm = ChatOpenAI(
-        model="gpt-4o-mini",
-        temperature=0.0,
-        openai_api_key=settings.openai_api_key.get_secret_value()
-    )
-    
-    # 2. Get Retriever
-    retriever = get_retriever(k=3)
+    # Grab API key securely from Streamlit session state
+    api_key = st.session_state.get("api_key", "")
+    if not api_key:
+        raise ValueError("OpenAI API key is missing in session state. Please authenticate first.")
+
+    retriever = get_retriever()
     if not retriever:
-        logger.error("Failed to retrieve vector store for RAG chain.")
+        logger.error("Retriever could not be initialized.")
         return None
 
-    # 3. Define Customer Support Prompt Template
-    template = """You are SupportPearlz, an expert and polite AI customer support assistant for Pearlz Home Systems. 
-Answer the user's question accurately using ONLY the provided context below. If you do not know the answer or if it's not present in the context, politely state that you cannot help with that and direct them to human support.
+    # Use gpt-4o-mini with the user-provided API key
+    llm = ChatOpenAI(
+        model="gpt-4o-mini",
+        temperature=0.2,
+        openai_api_key=api_key
+    )
 
-Context:
-{context}
+    template = """You are SupportPearlz, an official, professional, and helpful customer support assistant for Pearlz Home Systems. 
+    Answer the user's question accurately using ONLY the provided context below. 
+    If the answer cannot be found within the context, politely state that you can only answer questions related to Pearlz Home Systems policies, warranties, and product manuals. Do not make up information.
 
-User Question: {question}
+    Context:
+    {context}
 
-Helpful Answer:"""
+    User Question: {question}
+
+    Helpful Answer:"""
 
     prompt = ChatPromptTemplate.from_template(template)
 
-    # 4. Build LCEL Chain
+    def format_docs(docs):
+        return "\n\n".join(doc.page_content for doc in docs)
+
     rag_chain = (
         {"context": retriever | format_docs, "question": RunnablePassthrough()}
         | prompt
         | llm
         | StrOutputParser()
     )
-    
-    logger.info("RAG chain successfully constructed.")
-    return rag_chain
 
-if __name__ == "__main__":
-    chain = get_rag_chain()
-    if chain:
-        test_query = "What does the warranty cover for the AquaPearl 500 Pro?"
-        logger.info(f"Running test query: '{test_query}'")
-        response = chain.invoke(test_query)
-        print("\n--- RAG Response ---")
-        print(response)
-        print("--------------------\n")
+    logger.info("RAG chain successfully initialized.")
+    return rag_chain
