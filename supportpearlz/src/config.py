@@ -1,13 +1,16 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from pydantic import SecretStr
 
 class Settings(BaseSettings):
-    openai_api_key: SecretStr
-    log_level: str = "INFO"
-    chunk_size: int = 800
-    chunk_overlap: int = 150
-    vector_store_path: str = "data/vector_store"
+    OPENAI_API_KEY: str = ""
+    LOG_LEVEL: str = "INFO"
 
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
+        env_ignore_empty=True,
+        # This tells Pydantic not to crash if the .env file is missing on cloud deployment
+        case_sensitive=False
+    )
 
 settings = Settings()
