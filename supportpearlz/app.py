@@ -4,6 +4,9 @@ from src.chains.rag_chain import get_rag_chain
 from pathlib import Path
 from src.ingestion.build_index import build_vector_store
 
+# Dynamically locate the base directory for app.py to prevent path errors on cloud
+BASE_DIR = Path(__file__).resolve().parent
+
 st.set_page_config(
     page_title="SupportPearlz AI | Enterprise Assistant",
     page_icon="🛡️",
@@ -81,9 +84,9 @@ if "messages" not in st.session_state: st.session_state.messages = []
 for message in st.session_state.messages:
     with st.chat_message(message["role"]): st.markdown(message["content"])
 
-# Initialize RAG chain dynamically (No st.cache_resource to allow session state key passing)
+# Initialize RAG chain dynamically using the robust BASE_DIR path
 def load_chain():
-    vector_store_path = Path("data/vector_store")
+    vector_store_path = BASE_DIR / "data" / "vector_store"
     if not vector_store_path.exists() or not any(vector_store_path.iterdir()):
         try:
             with st.spinner("Building vector index for the first time..."):
